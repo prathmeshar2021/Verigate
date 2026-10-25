@@ -18,10 +18,9 @@ The template has four pages:
 
 Two ways to finish, pick one:
 
-A. Use Verigate_2pager.docx directly. It already reproduces all four pages.
-   Fill in the three yellow placeholders on page 1, then File > Save as PDF.
-   The only thing missing is the Flipkart logo image at the top of page 1,
-   which you can paste in from the original if you want it.
+A. The PDF is ready to upload as it is. If you want to change any wording,
+   edit the .docx and export a fresh PDF from Word (File > Save as > PDF),
+   keeping A4 and portrait.
 
 B. Make a copy of their Google Doc, then paste the text from body-text.txt
    into pages 3 and 4. Set the body font to 10.5pt. This keeps their exact
@@ -31,13 +30,16 @@ Either way the final upload must be a PDF.
 
 ## Before you upload
 
-  [ ] Page 1: full name, enrollment number, phone filled in (email already there)
-  [ ] Body is still 2 pages
-  [ ] Word count under 1200 (currently 1135)
-  [ ] A4, portrait
-  [ ] Exported as PDF
-  [ ] Renamed to <your name>_<your college>.pdf
-  [ ] Prototype zip attached separately: verigate-prototype.zip
+  [x] Page 1 details filled: Prathmesh Gabhane / 2025H1400103P /
+      gabhaneprathmesh@gmail.com / 7587115157
+  [x] Flipkart logo on page 1 and in the bottom-right corner of all 4 pages
+  [x] Body is 2 pages
+  [x] 1135 words, under the 1200 limit
+  [x] A4, portrait, body text 10pt and above
+  [x] Exported as PDF
+  [x] Named "Prathmesh Gabhane_BITS Pilani.pdf"
+  [ ] CHECK the college name is right, I took it from the enrollment number
+  [ ] Upload the prototype zip too
 
 ## If you also record the walkthrough video
 

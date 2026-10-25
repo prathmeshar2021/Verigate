@@ -1,12 +1,18 @@
 const fs = require('fs');
 const d = require('docx');
 const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType,
-        AlignmentType, BorderStyle, ShadingType, LevelFormat, PageBreak, convertInchesToTwip } = d;
+        AlignmentType, BorderStyle, ShadingType, LevelFormat, PageBreak, Footer, ImageRun } = d;
 
 const BLUE = '2874F0';
 const INK = '1A1A1A';
 const MARGIN = 1080;              // 0.75"
 const USABLE = 11906 - MARGIN * 2; // A4 width minus margins
+
+const LOGO = fs.readFileSync('logo/bag.png');
+const logoRun = (px) => new ImageRun({
+  data: LOGO, type: 'png',
+  transformation: { width: px, height: Math.round(px * 498 / 495) }
+});
 
 const NONE = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
 const noBorders = { top: NONE, bottom: NONE, left: NONE, right: NONE,
@@ -56,6 +62,11 @@ const panel = (children, color) => new Table({
 // ---- page 1: cover -------------------------------------------------------
 
 const cover = [
+  new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { after: 320 },
+    children: [logoRun(96)]
+  }),
   p('Flipkart APM ’29  |  Problem Statement', {
     bold: true, size: 32, color: BLUE, align: AlignmentType.CENTER, after: 80,
     border: { top: { style: BorderStyle.SINGLE, size: 12, color: BLUE, space: 6 },
@@ -73,10 +84,10 @@ const cover = [
 
   panel([
     p('Individual’s Details', { bold: true, size: 26, color: BLUE, align: AlignmentType.CENTER, after: 220 }),
-    p('[Your Full Name]',                     { bold: true, size: 24, color: BLUE, highlight: 'yellow', after: 160 }),
-    p('[Your Enrollment Number (Institute ID)]', { bold: true, size: 24, color: BLUE, highlight: 'yellow', after: 160 }),
-    p('prathmeshg2023@gmail.com',             { bold: true, size: 24, color: BLUE, after: 160 }),
-    p('[Your Phone Number]',                  { bold: true, size: 24, color: BLUE, highlight: 'yellow', after: 0 })
+    p('Prathmesh Gabhane',                    { bold: true, size: 24, color: BLUE, after: 160 }),
+    p('2025H1400103P',                        { bold: true, size: 24, color: BLUE, after: 160 }),
+    p('gabhaneprathmesh@gmail.com',           { bold: true, size: 24, color: BLUE, after: 160 }),
+    p('7587115157',                           { bold: true, size: 24, color: BLUE, after: 0 })
   ], INK),
 
   new Paragraph({ children: [new PageBreak()] })
@@ -249,7 +260,16 @@ const doc = new Document({
     }]
   },
   sections: [{
-    properties: { page: { margin: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN } } },
+    properties: { page: { margin: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN, footer: 480 } } },
+    footers: {
+      default: new Footer({
+        children: [new Paragraph({
+          alignment: AlignmentType.RIGHT,
+          spacing: { before: 0, after: 0 },
+          children: [logoRun(29)]
+        })]
+      })
+    },
     children: [...cover, ...page2, ...body]
   }]
 });

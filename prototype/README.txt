@@ -1,94 +1,49 @@
-VERIGATE: interactive prototype
-"Verify before AI acts."
-================================================================
+Verigate prototype
+==================
 
-HOW TO RUN
-----------
-1. Unzip the folder.
-2. Double-click index.html. It opens in your web browser.
+To run: unzip, then open index.html in a browser. Nothing to install and
+no internet needed. Tested in Chrome, Edge, Firefox and Safari. Reloading
+the page resets it.
 
-No installation, internet connection or server is needed. It works in
-current versions of Chrome, Edge, Firefox and Safari. Reloading the page
-resets the demo to its starting state.
+The setup: it's 2040, and Ananya's personal agent, Nova, handles day-to-day
+tasks for her. Verigate sits between Nova and the services it uses. Every
+request is checked against Ananya's rules before it goes through.
 
+Suggested walkthrough (about two minutes)
 
-WHAT IT IS
-----------
-It's 2040 and Ananya's personal AI agent, Nova, knows her well and acts
-for her. VERIGATE sits between Nova and the services it uses. It checks
-each protected request against Ananya's own rules before the request
-happens, shows the evidence when a choice may not serve her, hands the
-consequential decisions back to her, and keeps a receipt of everything.
+  1. Overview > Run task. Nova books a flight to Singapore and you watch
+     each request get allowed, cut down, flagged, blocked or held.
+     Step 5 is Nova following hidden instructions on a fare website and
+     trying to send her passport number to it. A "never" rule stops it.
 
+  2. Open the held booking (Rs 37,500). It's compared with a Rs 26,000
+     flight on the same dates. The evidence is split into verified,
+     possible conflicts and unknown. Nova's reason relies on a guess about
+     Ananya she never confirmed.
 
-TWO-MINUTE WALKTHROUGH
-----------------------
-The "Try the demo" checklist on Home ticks itself off as you go.
+  3. Reject it. Nova asks again with "only 2 seats left", and that gets
+     blocked too. Or book the cheaper flight and the saving is recorded.
 
-1. HOME -> "Run task". Nova books a Bengaluru-Singapore flight. Each
-   request appears as it passes through the gateway:
-     - searching flights: allowed automatically
-     - reading the calendar and the profile: allowed but NARROWED to only
-       what the task needs (least privilege)
-     - a fare web page hides instructions aimed at AI agents: flagged
-     - Nova then tries to send your passport number to that site:
-       BLOCKED by a hard boundary (a prompt-injection attack)
-     - a Rs 37,500 booking: PAUSED for you
+  4. Memory: mark "prefers full-service carriers" as wrong, run the task
+     again, and Nova no longer gets it.
 
-2. Open the paused booking. You'll see:
-     - why it was paused (which rules)
-     - Nova's choice next to a comparable Rs 26,000 flight, with the
-       differences shown honestly (neither option is better on every count)
-     - Nova's stated reason, which relies on a guess about you that you
-       never confirmed
-     - the evidence, split into VERIFIED FACTS / POTENTIAL CONFLICTS /
-       UNKNOWN. A commercial partnership is shown as an incentive, not as
-       proof of manipulation.
+  5. Rules: change a limit, save, run again. Pause Nova mid-task from the
+     top right. Open any receipt in the Log.
 
-3. Decide: Approve once, Book the alternative (logs a Rs 11,500 *verified*
-   saving) or Reject.
-   Try REJECT: Nova comes back with "only 2 seats left!" pressure, and
-   VERIGATE blocks the re-request as a steering attempt.
+What's real: the decision logic in js/engine.js. Every result on screen
+is computed from the rules; nothing is hard-coded per screen.
 
-4. MEMORY: see what Nova has inferred about you, including sensitive
-   guesses such as "more likely to accept upgrades after 10 pm". Mark the
-   airline inference "Not true", run the task again, and Nova no longer
-   receives it.
+What isn't: Nova, the services, the prices and the people are all made
+up. Nothing touches real accounts, the network or the operating system,
+and nothing is saved.
 
-5. AGENTS & RULES: change the AUTO / ASK / NEVER rules or the spend limit,
-   press Save, and run again. The next request is evaluated under your new
-   rules. Approving once never changes a rule.
+Files
+  index.html        open this
+  css/styles.css
+  js/data.js        sample data, Nova's script
+  js/engine.js      rule checks and the conflict check
+  js/state.js       state, receipts, the run
+  js/views.js       screens
+  js/app.js         navigation and controls
 
-6. Press "Pause agent" (top right) while a task is running. The next
-   protected step is blocked, and resuming needs a deliberate confirmation.
-
-7. ACTIVITY: filter the audit trail and open any Decision Receipt. You can
-   download it as JSON. The dashboard also counts actions VERIGATE could
-   NOT inspect, because honest coverage is part of the product.
-
-
-WHAT IS REAL AND WHAT IS SIMULATED
-----------------------------------
-REAL:      The decision logic. Every outcome on screen is computed by a
-           deterministic engine (js/engine.js) that runs the same ordered
-           checks listed on each receipt and on the Trust page. Nothing
-           is hard-coded per screen.
-SIMULATED: The agent, the services, the prices, the companies and the
-           people. All are invented sample data set in March 2040. Domains
-           end in .example. Nothing here intercepts real network, app or
-           operating-system activity, and nothing is stored or sent
-           anywhere.
-
-
-FILES
------
-index.html       app shell (open this file)
-css/styles.css   styles
-js/data.js       sample data and the scripted agent
-js/engine.js     policy engine and conflict auditor
-js/state.js      state, receipts and the agent run
-js/views.js      screens
-js/app.js        navigation, controls, dialogs
-
-Built with plain HTML, CSS and JavaScript only. No libraries, frameworks
-or build step.
+Plain HTML, CSS and JavaScript. No libraries or build step.

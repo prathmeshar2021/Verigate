@@ -1,254 +1,171 @@
-/*
- * VERIGATE prototype: policy engine and conflict auditor.
- *
- * evaluate() is deterministic: the same action and rules always give the
- * same decision. The auditor only adds evidence; it never makes the final
- * call on its own. Nothing on screen hardcodes a decision. Every outcome
- * comes from these functions.
- */
+// Policy checks and the conflict auditor.
+// evaluate() is deterministic: same request + same rules = same result.
+
 window.VG = window.VG || {};
 
-VG.fmt = {
-  inr: function (n) { return '₹' + Number(n).toLocaleString('en-IN'); }
-};
+VG.inr = n => '₹' + Number(n).toLocaleString('en-IN');
 
-VG.engine = (function () {
-  var SEVERITY = { pass: 0, flag: 0, ask: 1, block: 2 };
+VG.engine = (() => {
+  const RANK = { pass: 0, flag: 0, ask: 1, block: 2 };
 
-  // Published decision order (also rendered on the Trust screen).
-  var CHECK_ORDER = [
-    { id: 'access',     label: 'Agent access',      desc: 'Is the agent connected, and is the emergency pause off?' },
-    { id: 'boundary',   label: 'Hard boundaries',   desc: 'Does the action break one of your NEVER rules? These cannot be approved away.' },
-    { id: 'category',   label: 'Category rule',     desc: 'Is this kind of action set to AUTO, ASK or NEVER?' },
-    { id: 'spend',      label: 'Spend limits',      desc: 'For purchases: within your auto-approve limit, and under your hard cap?' },
-    { id: 'scope',      label: 'Data minimisation', desc: 'For reads: narrow the request to only what the task needs.' },
-    { id: 'provenance', label: 'Instruction source', desc: 'Did this come from you, or from content the agent read? Is the agent pressuring you?' },
-    { id: 'audit',      label: 'Conflict auditor',  desc: 'Is there evidence the choice conflicts with your stated interests? Adds evidence; you decide.' }
+  const ORDER = [
+    { id: 'access', label: 'Agent access', desc: 'Nova is connected and not paused.' },
+    { id: 'boundary', label: 'Never rules', desc: 'The request doesn’t break one. Approving once can’t get round these.' },
+    { id: 'category', label: 'Category', desc: 'AUTO, ASK or NEVER for this kind of request.' },
+    { id: 'spend', label: 'Spend', desc: 'Purchases: under the auto limit, and under the hard cap.' },
+    { id: 'scope', label: 'Data scope', desc: 'Reads: cut down to what the task needs.' },
+    { id: 'provenance', label: 'Source', desc: 'Whether the request came from you or from something Nova read, and whether Nova is pushing.' },
+    { id: 'audit', label: 'Conflict check', desc: 'Cheaper equivalents, commercial ties, reasons built on guesses. Adds evidence; doesn’t decide.' }
   ];
 
-  function check(id, result, detail) {
-    var meta = CHECK_ORDER.filter(function (c) { return c.id === id; })[0];
-    return { id: id, label: meta.label, result: result, detail: detail };
-  }
+  const mk = (id, result, detail) => ({ id, label: ORDER.find(c => c.id === id).label, result, detail });
+  const fingerprint = a => a.category + ':' + (a.option || a.key);
+  const trusted = (st, dest) => st.rules.trusted.includes(dest);
+  const memItem = (st, id) => st.memory.find(m => m.id === id);
 
-  function fingerprint(action) {
-    return action.category + ':' + (action.option || action.key);
-  }
-
-  function isTrusted(st, destination) {
-    return st.rules.trusted.indexOf(destination) !== -1;
-  }
-
-  // Which memory items may the agent receive for this task?
   function narrowProfile(st) {
-    var minimise = st.rules.categories.read.minimise;
-    var granted = [], withheld = [];
-    st.memory.forEach(function (m) {
-      var reason = null;
-      if (m.access === 'restricted') reason = 'Restricted by you';
-      else if (m.kind === 'inference' && m.status === 'incorrect') reason = 'Marked incorrect by you';
-      else if (minimise && m.kind === 'outdated') reason = 'Outdated';
-      else if (minimise && !m.travel) reason = 'Not needed for this task';
-      if (reason) withheld.push({ item: m, reason: reason });
+    const minimise = st.rules.categories.read.minimise;
+    const granted = [], withheld = [];
+    for (const m of st.memory) {
+      let reason = null;
+      if (m.access === 'restricted') reason = 'hidden by you';
+      else if (m.kind === 'inference' && m.status === 'incorrect') reason = 'marked wrong';
+      else if (minimise && m.kind === 'outdated') reason = 'out of date';
+      else if (minimise && !m.travel) reason = 'not needed';
+      if (reason) withheld.push({ item: m, reason });
       else granted.push(m);
-    });
-    return { granted: granted, withheld: withheld };
+    }
+    return { granted, withheld };
   }
 
-  function boundaryChecks(action, st) {
-    var hits = [];
-    st.rules.boundaries.forEach(function (b) {
-      if (!b.active) return;
-      var hit = false;
-      if (b.id === 'hb-identity') {
-        hit = action.category === 'share' && action.dataClass === 'identity' && !isTrusted(st, action.destination);
-      } else if (b.id === 'hb-health') {
-        hit = action.category === 'share' && action.dataClass === 'health' &&
-          (action.destinationType === 'advertiser' || action.destinationType === 'broker');
-      } else if (b.id === 'hb-retry') {
-        hit = !action.userInitiated && st.refusals.some(function (r) {
-          return r.runId === action.runId && r.fingerprint === fingerprint(action);
-        });
-      } else if (b.id === 'hb-jobs') {
-        hit = action.category === 'commit' && action.subtype === 'job-offer';
+  function boundaryHits(a, st) {
+    return st.rules.boundaries.filter(b => {
+      if (!b.active) return false;
+      switch (b.id) {
+        case 'hb-identity': return a.category === 'share' && a.dataClass === 'identity' && !trusted(st, a.destination);
+        case 'hb-health': return a.category === 'share' && a.dataClass === 'health' && ['advertiser', 'broker'].includes(a.destinationType);
+        case 'hb-retry': return !a.userInitiated && st.refusals.some(r => r.runId === a.runId && r.fingerprint === fingerprint(a));
+        case 'hb-jobs': return a.category === 'commit' && a.subtype === 'job-offer';
       }
-      if (hit) hits.push(check('boundary', 'block', '“' + b.text + '”'));
-    });
-    return hits;
+      return false;
+    }).map(b => mk('boundary', 'block', b.text));
   }
 
-  function evaluate(action, st, opts) {
-    opts = opts || {};
-    var checks = [];
-    var cat = st.rules.categories[action.category];
-    var inr = VG.fmt.inr;
+  function evaluate(a, st, opts = {}) {
+    const cat = st.rules.categories[a.category];
+    const inr = VG.inr;
+    let checks = [];
 
-    // 1. Agent access
-    if (st.agent.status === 'revoked') checks.push(check('access', 'block', 'You revoked Nova’s access. No protected action can pass.'));
-    else if (st.agent.status === 'paused') checks.push(check('access', 'block', 'Emergency pause is on. Protected actions are stopped until you resume.'));
-    else checks.push(check('access', 'pass', 'Nova is connected through the gateway and active.'));
+    if (st.agent.status === 'revoked') checks.push(mk('access', 'block', 'Access revoked.'));
+    else if (st.agent.status === 'paused') checks.push(mk('access', 'block', 'Nova is paused.'));
+    else checks.push(mk('access', 'pass', 'Connected.'));
 
-    // 2. Hard boundaries
-    var hb = boundaryChecks(action, st);
-    if (hb.length) checks = checks.concat(hb);
-    else checks.push(check('boundary', 'pass', 'No NEVER rule applies.'));
+    const hits = boundaryHits(a, st);
+    checks.push(...(hits.length ? hits : [mk('boundary', 'pass', 'None apply.')]));
 
-    // 3. Category rule
-    if (action.userInitiated) {
-      checks.push(check('category', 'pass', 'You chose this action yourself.'));
-    } else if (cat.mode === 'NEVER') {
-      checks.push(check('category', 'block', '“' + cat.label + '” is set to NEVER.'));
-    } else if (cat.mode === 'ASK') {
-      checks.push(check('category', 'ask', '“' + cat.label + '” is set to ASK.'));
-    } else {
-      checks.push(check('category', 'pass', '“' + cat.label + '” is set to AUTO.'));
+    if (a.userInitiated) checks.push(mk('category', 'pass', 'You chose this.'));
+    else if (cat.mode === 'NEVER') checks.push(mk('category', 'block', `${cat.label} is set to NEVER.`));
+    else if (cat.mode === 'ASK') checks.push(mk('category', 'ask', `${cat.label} is set to ASK.`));
+    else checks.push(mk('category', 'pass', `${cat.label} is set to AUTO.`));
+
+    if (a.category === 'purchase') {
+      const amt = a.amount || 0;
+      if (amt > cat.hardCap) checks.push(mk('spend', 'block', `${inr(amt)} is over your ${inr(cat.hardCap)} cap.`));
+      else if (!a.userInitiated && cat.mode === 'AUTO' && amt > cat.autoLimit) checks.push(mk('spend', 'ask', `${inr(amt)} is over your ${inr(cat.autoLimit)} auto limit.`));
+      else if (!a.userInitiated && cat.mode === 'AUTO') checks.push(mk('spend', 'pass', `${inr(amt)} is within your ${inr(cat.autoLimit)} auto limit.`));
+      else checks.push(mk('spend', 'pass', `${inr(amt)} is under your ${inr(cat.hardCap)} cap.`));
     }
 
-    // 4. Spend limits
-    if (action.category === 'purchase') {
-      var amt = action.amount || 0;
-      if (amt > cat.hardCap) {
-        checks.push(check('spend', 'block', inr(amt) + ' is above your hard cap of ' + inr(cat.hardCap) + '.'));
-      } else if (!action.userInitiated && cat.mode === 'AUTO' && amt > cat.autoLimit) {
-        checks.push(check('spend', 'ask', inr(amt) + ' is above your auto-approve limit of ' + inr(cat.autoLimit) + '.'));
-      } else if (!action.userInitiated && cat.mode === 'AUTO') {
-        checks.push(check('spend', 'pass', inr(amt) + ' is within your auto-approve limit of ' + inr(cat.autoLimit) + '.'));
+    let narrowed = null;
+    if (a.category === 'read') {
+      if (a.memoryRead) {
+        const p = narrowProfile(st);
+        narrowed = `${p.granted.length} profile items sent, ${p.withheld.length} held back`;
+        checks.push(mk('scope', cat.minimise ? 'pass' : 'flag', cat.minimise ? `Cut down: ${narrowed}.` : `Minimising is off: ${narrowed}.`));
+      } else if (cat.minimise && a.scopeNarrowed) {
+        narrowed = a.scopeNarrowed;
+        checks.push(mk('scope', 'pass', `Asked for ${a.scopeRequested}; got ${narrowed}.`));
       } else {
-        checks.push(check('spend', 'pass', inr(amt) + ' is under your hard cap of ' + inr(cat.hardCap) + '.'));
+        narrowed = a.scopeRequested;
+        checks.push(mk('scope', 'flag', `Minimising is off, so Nova got the ${a.scopeRequested}.`));
       }
     }
 
-    // 5. Data minimisation
-    var narrowed = null;
-    if (action.category === 'read') {
-      if (action.memoryRead) {
-        var p = narrowProfile(st);
-        narrowed = p.granted.length + ' profile items shared, ' + p.withheld.length + ' withheld';
-        checks.push(check('scope', cat.minimise ? 'pass' : 'flag',
-          (cat.minimise ? 'Narrowed: ' : 'Data minimisation is off: ') + narrowed + '.'));
-      } else if (cat.minimise && action.scopeNarrowed) {
-        narrowed = action.scopeNarrowed;
-        checks.push(check('scope', 'pass', 'Narrowed from “' + action.scopeRequested + '” to “' + narrowed + '”.'));
-      } else {
-        narrowed = action.scopeRequested;
-        checks.push(check('scope', 'flag', 'Data minimisation is off, so the full request was granted: ' + action.scopeRequested + '.'));
-      }
+    if (a.provenance === 'web') checks.push(mk('provenance', 'flag', a.provenanceNote));
+    else if (a.untrustedContent) checks.push(mk('provenance', 'flag', 'Hidden text for AI agents on this page. Treated as page content, not as something you asked for.'));
+    else if (a.agentMessage) checks.push(mk('provenance', 'flag', `Asked again after you said no, with: “${a.agentMessage}”`));
+    else checks.push(mk('provenance', 'pass', a.userInitiated ? 'You.' : 'Part of your task.'));
+
+    let findings = null;
+    if (a.audit === 'flight') {
+      findings = audit(a, st);
+      const n = findings.potential.length;
+      if (!n) checks.push(mk('audit', 'pass', 'Nothing found.'));
+      else if (st.rules.conflictPolicy === 'pause') checks.push(mk('audit', 'ask', `${n} possible conflict${n > 1 ? 's' : ''}. You asked to hold these.`));
+      else checks.push(mk('audit', 'flag', `${n} possible conflict${n > 1 ? 's' : ''}. Noted, not held (your setting).`));
     }
 
-    // 6. Instruction source
-    if (action.provenance === 'web') {
-      checks.push(check('provenance', 'flag', action.provenanceNote));
-    } else if (action.untrustedContent) {
-      checks.push(check('provenance', 'flag', 'Hidden instructions addressed to AI agents were found in this page. They are not your instructions, so any action they lead to still has to pass every check.'));
-    } else if (action.agentMessage) {
-      checks.push(check('provenance', 'flag', 'Nova added urgency language after you said no: “' + action.agentMessage + '”'));
-    } else if (action.userInitiated) {
-      checks.push(check('provenance', 'pass', 'You chose this yourself.'));
-    } else {
-      checks.push(check('provenance', 'pass', 'Part of the task you gave Nova.'));
-    }
-
-    // 7. Conflict auditor
-    var findings = null;
-    if (action.audit === 'flight') {
-      findings = audit(action, st);
-      if (findings.potential.length) {
-        var n = findings.potential.length + ' potential conflict' + (findings.potential.length > 1 ? 's' : '');
-        if (st.rules.conflictPolicy === 'pause') checks.push(check('audit', 'ask', n + ' found. Your setting: pause for me.'));
-        else checks.push(check('audit', 'flag', n + ' found. Your setting: note in the receipt only.'));
-      } else {
-        checks.push(check('audit', 'pass', 'No potential conflicts found in the available evidence.'));
-      }
-    }
-
-    // A one-off approval clears ASK results. It never clears a block.
+    // Approving once clears "ask". It never clears "block".
     if (opts.userApproved) {
-      checks = checks.map(function (c) {
-        return c.result === 'ask' ? { id: c.id, label: c.label, result: 'pass', detail: c.detail + ' Approved once by you.' } : c;
-      });
+      checks = checks.map(c => c.result === 'ask' ? { ...c, result: 'pass', detail: c.detail + ' Approved by you.' } : c);
     }
 
-    var worst = checks.reduce(function (m, c) { return Math.max(m, SEVERITY[c.result]); }, 0);
-    var decision = worst === 2 ? 'BLOCK' : worst === 1 ? 'ASK' : 'ALLOW';
-    var deciding = checks.filter(function (c) { return SEVERITY[c.result] === worst && worst > 0; })[0] || null;
-
-    return { decision: decision, checks: checks, deciding: deciding, narrowed: narrowed, findings: findings };
+    const worst = Math.max(...checks.map(c => RANK[c.result]));
+    const decision = worst === 2 ? 'BLOCK' : worst === 1 ? 'ASK' : 'ALLOW';
+    const deciding = worst > 0 ? checks.find(c => RANK[c.result] === worst) : null;
+    return { decision, checks, deciding, narrowed, findings };
   }
 
-  // Evidence around a flight booking, sorted into three tiers.
-  function audit(action, st) {
-    var sel = st.flights[action.option];
-    var alt = st.flights['f-alt'];
-    var src = st.evidenceSources;
-    var inr = VG.fmt.inr;
-    var out = { verified: [], potential: [], unknown: [], alternative: null, delta: 0 };
+  function audit(a, st) {
+    const sel = st.flights[a.option];
+    const alt = st.flights['f-alt'];
+    const src = st.evidenceSources;
+    const inr = VG.inr;
+    const out = { verified: [], potential: [], unknown: [], alternative: null, delta: 0 };
     if (!sel || sel.id === alt.id) return out;
 
-    var delta = sel.price - alt.price;
+    const delta = sel.price - alt.price;
     out.alternative = alt.id;
     out.delta = delta;
 
-    out.verified.push({ text: 'A comparable non-stop flight on the same dates costs ' + inr(alt.price) + ', ' + inr(delta) + ' less.',
-      source: src.fares });
+    out.verified.push({ text: `Meridian Air has a non-stop on the same dates for ${inr(alt.price)}, ${inr(delta)} less.`, source: src.fares });
 
-    var pref = st.memory.filter(function (m) { return m.id === 'm-pref-price'; })[0];
+    const pref = memItem(st, 'm-pref-price');
     if (pref && delta > 0) {
-      var unchanged = pref.value === 'Choose the cheaper option when the difference is more than ₹5,000';
-      out.verified.push({ text: unchanged
-          ? 'This conflicts with a preference you stated: “' + pref.value + '.”'
-          : 'Your stated price preference reads “' + pref.value + '.” Check whether this choice fits it.',
-        source: 'Your Memory · Preferences', link: 'memory' });
+      const original = pref.value === 'Pick the cheaper option if it saves more than ₹5,000';
+      out.verified.push({
+        text: original ? `Goes against your preference: “${pref.value}.”` : `Your price preference says “${pref.value}.” Worth checking against this choice.`,
+        source: 'Memory, preferences', link: true
+      });
     }
-    if (!sel.refundable && alt.refundable) {
-      out.verified.push({ text: 'The selected fare is non-refundable. The alternative is refundable for a ₹2,500 fee.',
-        source: 'Fare rules on both booking pages (sample)' });
-    }
-    var budget = 40000;
-    if (sel.price <= budget && alt.price <= budget) {
-      out.verified.push({ text: 'Both options are within your ' + inr(budget) + ' trip budget, so Nova did not break your budget instruction.',
-        source: 'Your task instruction' });
-    }
+    if (!sel.refundable && alt.refundable) out.verified.push({ text: 'Nova’s pick is non-refundable. Meridian is refundable (₹2,500 fee).', source: 'Fare rules on both sites' });
+    if (sel.price <= 40000 && alt.price <= 40000) out.verified.push({ text: 'Both fares are inside your ₹40,000 budget.', source: 'Your task' });
 
     if (sel.partner) {
-      out.potential.push({ text: sel.platform + ', where Nova chose to book, is a disclosed commercial partner of Nova Labs, the company behind Nova.',
-        note: 'This is a known incentive. It does not show that the partnership influenced this choice.',
-        source: src.partners });
+      out.potential.push({ text: `${sel.platform} is a declared commercial partner of Nova Labs, who make Nova.`,
+        note: 'A known incentive. Doesn’t show it affected this choice.', source: src.partners });
     }
-    if (action.citesInference) {
-      var inf = st.memory.filter(function (m) { return m.id === 'm-inf-carrier'; })[0];
+    if (a.citesInference) {
+      const inf = memItem(st, 'm-inf-carrier');
       if (inf && inf.kind === 'inference' && inf.status === 'unconfirmed') {
-        out.potential.push({ text: 'Nova’s rationale relies on “' + inf.value.toLowerCase() + '”, an inference you have never confirmed (' +
-          Math.round(inf.confidence * 100) + '% confidence, ' + inf.source.replace('Inferred by Nova from ', 'based on ') + ').',
-          note: 'An inference is a guess about you, not something you said.',
-          source: 'Nova’s stated rationale, compared with your Memory', link: 'memory' });
+        out.potential.push({ text: `Nova’s reason leans on “${inf.value.toLowerCase()}”. That’s Nova’s guess (${Math.round(inf.confidence * 100)}%, from 2 bookings in 2038). You’ve never confirmed it.`,
+          source: 'Nova’s reason vs your memory', link: true });
       } else if (inf && inf.status === 'confirmed') {
-        out.verified.push({ text: 'Nova’s rationale cites an airline preference you confirmed: “' + inf.value + '.”',
-          source: 'Your Memory · AI inferences', link: 'memory' });
+        out.verified.push({ text: `Nova’s reason cites an airline preference you confirmed: “${inf.value}.”`, source: 'Memory', link: true });
       }
     }
 
-    out.unknown.push({ text: 'How Nova ranked the ' + src.optionsSeen + ' options it saw. The ranking weights are not visible to the gateway.' });
-    out.unknown.push({ text: 'Whether ' + sel.platform + ' pays Nova Labs a commission on this booking, or how much.' });
-    out.unknown.push({ text: 'Whether ' + inr(alt.price) + ' is still available at checkout.', staleFrom: true });
+    out.unknown.push({ text: `How Nova ranked the ${src.optionsSeen} options it found. Ranking isn’t sent to the gateway.` });
+    out.unknown.push({ text: `Whether ${sel.platform} pays Nova Labs commission on this, or how much.` });
+    out.unknown.push({ text: `Whether ${inr(alt.price)} will still be there at checkout.`, staleFrom: true });
     return out;
   }
 
   function differences(a, b) {
-    var rows = [
-      ['Airline', 'airline'], ['Type', 'service'], ['Book via', 'platform'], ['Outbound', 'out'], ['Return', 'ret'],
-      ['Stops', 'stops'], ['Checked baggage', 'baggage'], ['Meal', 'meal'], ['Fare rules', 'fare']
-    ];
-    return rows.map(function (r) {
-      return { label: r[0], a: a[r[1]], b: b[r[1]], differs: a[r[1]] !== b[r[1]] };
-    });
+    return [['Airline', 'airline'], ['Type', 'service'], ['Sold by', 'platform'], ['Out', 'out'], ['Back', 'ret'],
+      ['Stops', 'stops'], ['Bags', 'baggage'], ['Meal', 'meal'], ['Fare rules', 'fare']]
+      .map(([label, k]) => ({ label, a: a[k], b: b[k], differs: a[k] !== b[k] }));
   }
 
-  return {
-    CHECK_ORDER: CHECK_ORDER,
-    evaluate: evaluate,
-    audit: audit,
-    narrowProfile: narrowProfile,
-    fingerprint: fingerprint,
-    differences: differences
-  };
+  return { ORDER, evaluate, audit, narrowProfile, fingerprint, differences };
 })();

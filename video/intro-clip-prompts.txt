@@ -1,0 +1,156 @@
+VERIGATE DEMO - INTRO CLIPS
+Two 8-second clips to sit in front of the screen recording.
+Paste each block into Gemini separately. Upload your reference photo first.
+
+================================================================
+BEFORE YOU GENERATE
+================================================================
+
+1. Upload your photo in the same message as the prompt, and generate CLIP 1
+   and CLIP 2 in separate messages (one clip per generation).
+
+2. Keep your photo the same for both so the face matches. The hoodie is
+   described identically in both prompts on purpose.
+
+3. Set output to 16:9 so it matches your screen recording.
+
+4. 8 seconds is the native clip length. If your version offers 10, both
+   prompts stretch fine; just slow the camera moves.
+
+5. The white flash at the end of clip 1 and the start of clip 2 is there to
+   hide any mismatch between the two generations. Keep it.
+
+================================================================
+CLIP 1 - LEAVING 2026
+================================================================
+
+8-second live-action cinematic shot, 16:9, shot on 35mm, shallow depth of field.
+
+SUBJECT: The young Indian man from the attached reference photo. Same face,
+same hair. Mid-twenties, wearing a charcoal grey hoodie over a plain t-shirt.
+
+SETTING: A small cluttered student bedroom at night. One warm desk lamp, an
+open laptop, printed papers and a coffee mug. On the wall behind him, a paper
+calendar for OCTOBER 2026 with the 24th circled in red marker.
+
+ACTION, in this order:
+  0-2s   Close on his hands holding a scuffed handheld device with a glowing
+         amber segment display reading 24 OCT 2026. He looks up from it.
+  2-4s   He presses a large button on the side. A ring of blue-white light
+         tears open in the middle of the room, about two metres tall, its edge
+         rippling like liquid glass. Loose papers lift off the desk in the draft.
+  4-7s   The amber digits spin rapidly upward and settle hard on 04 MAR 2040.
+         The camera pushes in past his shoulder toward the ring.
+  7-8s   He steps into it. The light flares to pure white and fills the frame.
+
+CAMERA: Handheld and close to start, then a smooth dolly push-in toward the
+ring. Ends on a full white frame.
+
+LIGHT: Warm tungsten lamp, then cold blue portal light taking over his face.
+
+ON-SCREEN TEXT: Small clean white sans-serif, lower left, visible only for the
+first two seconds: "Bengaluru, 24 October 2026". No other text anywhere.
+
+AUDIO: Quiet night room tone. A mechanical button click. A low electrical hum
+rising in pitch. Papers fluttering. A deep bass whoosh as the ring opens, and
+one low synth note swelling from 4s.
+NO DIALOGUE. NO VOICEOVER. NO SPOKEN WORDS. No narration of any kind.
+
+AVOID: cartoon or animated look, neon sci-fi styling, other people in the room,
+brand logos, any text other than the date, lens flare across his face, speech.
+
+================================================================
+CLIP 2 - ARRIVING IN 2040
+================================================================
+
+8-second live-action cinematic shot, 16:9, shot on 35mm, shallow depth of field.
+This continues directly from the previous shot.
+
+OPENING: The frame starts pure white and the white falls away within the first
+half second to reveal the new room.
+
+SUBJECT: The same young Indian man from the attached reference photo. Same
+face, same hair, same charcoal grey hoodie.
+
+SETTING: A bright calm apartment, mid-morning daylight through a large window.
+Pale wood, clean simple furniture, a couple of plants. Newer and tidier than
+the previous room, but ordinary. Not futuristic.
+
+SECOND PERSON: A young Indian woman in her late twenties, sitting at a desk
+with her back three-quarters to camera. Dark hair tied back, olive green
+sweater. She is working calmly on a thin modern laptop.
+
+ACTION, in this order:
+  0-1s   The white resolves. He stumbles one step forward into the room,
+         steadies himself and looks around, surprised.
+  1-4s   He notices her, walks over quietly and stops just behind her left
+         shoulder, leaning in to see her screen. She does not react to him.
+         He is watching, not interrupting.
+  4-7s   Over-the-shoulder view of the laptop. The screen shows a calm
+         cream-white dashboard: a dark serif heading at the top and a neat
+         vertical list of rows below it, one row tinted pale yellow, small
+         coloured labels down the right-hand edge. Keep it soft and slightly
+         out of focus. She clicks one row. He leans in, interested.
+  7-8s   The camera pushes smoothly past him into the laptop screen until the
+         screen fills the frame and goes gently soft.
+
+CAMERA: Wide to establish the room, then a slow steady dolly in, finishing on
+a tight push into the screen.
+
+LIGHT: Soft natural daylight, gentle contrast, slight warm cast.
+
+ON-SCREEN TEXT: Small clean white sans-serif, lower left, visible only between
+1 and 3 seconds: "4 March 2040". No other text anywhere.
+
+AUDIO: An airy whoosh settling into quiet room tone. Faint birds outside. A
+soft keyboard tap and one quiet interface click around 5s. A calm sustained
+synth pad underneath that fades out at the end.
+NO DIALOGUE. NO VOICEOVER. NO SPOKEN WORDS.
+
+AVOID: neon, holograms, flying cars, robots, cartoon look, dense unreadable
+gibberish text on the laptop, brand logos, any speech.
+
+================================================================
+IF THE RESULT ISN'T RIGHT
+================================================================
+
+Dates come out garbled
+  Likely. Video models are poor at rendering text. Easiest fix: delete the
+  ON-SCREEN TEXT line from the prompt, regenerate, and add the two date
+  captions yourself in your editor. That also lets you match the font to
+  your demo.
+
+It adds a voice anyway
+  Regenerate. If it persists, put "silent film, ambient sound only" at the
+  very start of the prompt.
+
+His face doesn't match
+  Re-upload the photo in the same message as the prompt, and use a clear,
+  front-facing, well-lit photo of just you.
+
+The two clips look like different rooms or different people
+  Expected to a degree. The white flash covers most of it. You can also trim
+  harder into the flash on both sides when you cut them together.
+
+The portal looks silly
+  Swap the ring for something plainer: replace the portal sentences with
+  "the air in front of him distorts and folds like heat haze over a road,
+  bending the room behind it."
+
+================================================================
+PUTTING IT TOGETHER
+================================================================
+
+Order:  clip 1  ->  clip 2  ->  your screen recording
+
+Cut from clip 1 to clip 2 at the brightest frame of the white flash.
+
+Cut from clip 2 into the recording at the moment the laptop screen fills the
+frame. Your recording opens on the Overview page, which is what Ananya is
+looking at, so the push into her screen becomes the push into the real app.
+
+A half-second cross-dissolve on that second cut hides the resolution change.
+
+Your narration starts on the first frame of the screen recording, on
+"Picture this. It's 2040." The two intro clips stay silent apart from their
+own effects, so nothing competes with your voice.
